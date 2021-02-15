@@ -182,7 +182,7 @@ class Player:
 				self.open_group(tiles, 'straight')
 				return tiles
 		return None
-	def open_group(tile_list, type_of_match):
+	def open_group(self, tile_list, type_of_match):
 		tile_set = set(tile_list)
 		count = 0
 		new_hand = []
@@ -236,30 +236,38 @@ class Player:
 		last_tile = None
 		straight_tracker = 0
 		flush_tracker = 0
-		used_tile_candidate_list = []
+		used_tile_candidate_list_flush = []
+		used_tile_candidate_list_straight = []
 		for i, tile in enumerate(hand):
 			if last_tile == (tile[0] - 1, tile[1]):
-				used_tile_candidate_list.append(i)
+				used_tile_candidate_list_straight.append(i)
+				print('straight')
+				print(tile)
+				print(i)
 				flush_tracker = 0
 				if not no_straight_flag:
-					if straight_tracker < 2:
+					if straight_tracker < 1:
 						straight_tracker += 1
 					else:
-						used_tile_idxs.extend(used_tile_candidate_list)
-						used_tile_candidate_list = []
+						used_tile_idxs.extend(used_tile_candidate_list_straight)
+						used_tile_candidate_list_straight = []
 						straight_count += 1
 						no_straight_flag = True
 						suits_counted_towards_score.append(tile[1])
 				else:
 					no_straight_flag = False
 			elif last_tile == tile:
-				used_tile_candidate_list.append(i)
+				print('flush')
+				print(tile)
+				print(i)
+				used_tile_candidate_list_flush.extend([i-1, i])
 				if not no_flush_flag:
-					if flush_tracker < 2:
+					print(flush_tracker)
+					if flush_tracker < 1:
 						flush_tracker += 1
 					else:
-						used_tile_idxs.extend(used_tile_candidate_list)
-						used_tile_candidate_list = []
+						used_tile_idxs.extend(used_tile_candidate_list_flush)
+						used_tile_candidate_list_flush = []
 						if tile[1] in SUITS:
 							normal_flush_count += 1
 						else:
@@ -269,16 +277,24 @@ class Player:
 				else:
 					no_flush_flag = False
 			else:
-				used_tile_candidate_list = []
+				used_tile_candidate_list_flush = []
+				used_tile_candidate_list_straight = []
 				flush_tracker = 0
 				straight_tracker = 0
+				no_straight_flag = False
+				no_flush_flag = False
+				if flush_tracker == 0:
+					used_tile_candidate_list_flush.append(i)
+				if straight_tracker == 0:
+					used_tile_candidate_list_straight.append(i)
 			last_tile = tile
-		import pdb; pdb.set_trace()
 		flush_tracker = 0
 		no_flush_flag = False
 		special_double_count = 0
 		normal_double_count = 0
 		doubles_list = []
+		last_tile = None
+		print(used_tile_idxs)
 		for i, tile in enumerate(hand):
 			if i not in used_tile_idxs:
 				if last_tile == tile and tile[0] not in [2, 8]:
