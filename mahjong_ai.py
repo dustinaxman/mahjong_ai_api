@@ -3,6 +3,7 @@ import copy
 import numpy as np
 from collections import defaultdict
 import time
+from multiprocessing import Process, Pipe
 
 
 SUITS = ['bamboo', 'dots', 'character']
@@ -36,6 +37,20 @@ ONE_OR_NINE_SCORE_FACTOR = 0.02
 # heuristic based on how many "winning" options there are
 # add learning part
 # construct fake games meant to teach that you need each suit + 9 1 not 8 and 2
+
+
+def spawn(f):
+    def fun(pipe, x):
+        pipe.send(f(x))
+        pipe.close()
+    return fun
+
+def parmap(f, X):
+    pipe = [Pipe() for x in X]
+    proc = [Process(target=spawn(f), args=(c, x)) for x, (p, c) in zip(X, pipe)]
+    [p.start() for p in proc]
+    [p.join() for p in proc]
+    return [p.recv() for (p, c) in pipe]
 
 
 class Environment:
@@ -140,7 +155,7 @@ class Brain:
 			# best_option = heuristic_filtered_options[random.randint(0, len(heuristic_filtered_options)-1)]
 			# else:
 			#best_option = options[random.randint(0, len(options)-1)] #TODO replace with self.get_action_eval
-			#best_option = options[random.randint(0, len(options)-1)]
+			best_option = options[random.randint(0, len(options)-1)]
 		else:
 			print('********************')
 			print('********************')
@@ -162,11 +177,7 @@ class Brain:
 			print('############')
 			start = time.process_time()
 			for option in options:
-				game_option = copy.deepcopy(game)
-				option_card_idx = game_option.player_list[game_option.env.current_player_idx].hand.index(option)
-				state = ('after_discard', game_option.player_list[game_option.env.current_player_idx].remove_from_hand(option_card_idx), None)
-				percentage_wins = self.run_playouts(game_option, state)
-				option_percentage_wins.append(percentage_wins)
+				option_percentage_wins.append(self.run_discard_option(self, option, game))
 			best_option_idx = np.argmax(option_percentage_wins)
 			best_option = options[best_option_idx]
 			tmp_map = {}
@@ -180,6 +191,12 @@ class Brain:
 			print(time.process_time() - start)
 			print('********************')
 		return best_option
+	def run_discard_option(self, option, game):
+		game_option = copy.deepcopy(game)
+		option_card_idx = game_option.player_list[game_option.env.current_player_idx].hand.index(option)
+		state = ('after_discard', game_option.player_list[game_option.env.current_player_idx].remove_from_hand(option_card_idx), None)
+		return self.run_playouts(game_option, state)
+
 
 				
 class Player:
