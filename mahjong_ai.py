@@ -55,11 +55,13 @@ def parmap(f, X):
 
 
 class Environment:
-    def __init__(self, tiles, num_players=4):
+    def __init__(self, tiles, num_players=4, seed=None):
         self.discarded = []
         self.num_players = num_players
+        random.seed(seed)
         self.current_player_idx = random.randint(0, self.num_players-1)
         self.remaining = tiles
+        random.seed(seed)
         random.shuffle(self.remaining)
         self.opened_tiles_per_player = [[]] * self.num_players
         self.discarded_tiles_per_player = [[]] * self.num_players
@@ -85,7 +87,7 @@ class Brain:
         total_wins = 0
         for i in range(self.NUM_PLAYOUTS):
             game.shuffle_game(hero_player_idx)
-            mcts_game = Game(player_list=copy.deepcopy(game.player_list), env=copy.deepcopy(game.env), MCTS=True, state=state)
+            mcts_game = Game(player_list=copy.deepcopy(game.player_list), env=copy.deepcopy(game.env), MCTS=True, state=state, RANDSEED=game.RANDSEED+1)
             mcts_game.play(num_turns_to_run=12)
             total_wins += mcts_game.player_list[hero_player_idx].score
             #total_wins += 1.0 if mcts_game.player_list[hero_player_idx].score == 1.0 else 0.0
@@ -97,7 +99,10 @@ class Brain:
         option_percentage_wins = []
         if game.MCTS:
             #CHOOSE RANDOM MOVE
+            random.seed(game.RANDSEED)
             best_option_idx = random.randint(0, len(options)-1)
+            if game.RANDSEED is not None:
+                game.RANDSEED += 1
         else:
             for option in options:
                 game_option = copy.deepcopy(game)
@@ -117,7 +122,10 @@ class Brain:
         options =  [False, True]
         option_percentage_wins = []
         if game.MCTS:
+            random.seed(game.RANDSEED)
             best_option_idx = random.randint(0, len(options)-1)
+            if game.RANDSEED is not None:
+                game.RANDSEED += 1
         else:
             for option in options:
                 game_option = copy.deepcopy(game)
@@ -156,7 +164,10 @@ class Brain:
             # best_option = heuristic_filtered_options[random.randint(0, len(heuristic_filtered_options)-1)]
             # else:
             #best_option = options[random.randint(0, len(options)-1)] #TODO replace with self.get_action_eval
+            random.seed(game.RANDSEED)
             best_option = options[random.randint(0, len(options)-1)]
+            if game.RANDSEED is not None:
+                game.RANDSEED += 1
         else:
             print('********************')
             print('********************')
@@ -177,6 +188,8 @@ class Brain:
                 print(str(tile) + " : " + str(count))
             print('############')
             start = time.time()
+            # for option in options:
+            #     option_percentage_wins.append(self.run_discard_option((option, game)))
             option_percentage_wins = parmap(self.run_discard_option, list(zip(options, [game for i in range(len(options))])))
             best_option_idx = np.argmax(option_percentage_wins)
             best_option = options[best_option_idx]
@@ -502,9 +515,10 @@ class Player:
 
         
 class Game:
-    def __init__(self, player_list=None, env=None, MCTS=False, state=('start', None, None)):
+    def __init__(self, player_list=None, env=None, MCTS=False, state=('start', None, None), RANDSEED=None):
+        self.RANDSEED = RANDSEED
         self.MCTS = MCTS
-        self.env = env if env else Environment(copy.deepcopy(TILES), num_players=4)
+        self.env = env if env else Environment(copy.deepcopy(TILES), num_players=4, seed=self.RANDSEED)
         self.game_end = False
         if player_list:
             self.player_list = player_list
@@ -524,7 +538,10 @@ class Game:
         possible_remaining_tiles = copy.deepcopy(TILES)
         for tile in used_tiles:
             possible_remaining_tiles.pop(possible_remaining_tiles.index(tile))
+        random.seed(self.RANDSEED)
         random.shuffle(possible_remaining_tiles)
+        if self.RANDSEED is not None:
+                self.RANDSEED += 1
         for i in range(0,4):
             if i != hero_player_idx:
                 num_tiles_to_select = 13 - 3*len(self.player_list[i].open_groups)
