@@ -4,7 +4,7 @@ import numpy as np
 from collections import defaultdict
 import time
 from multiprocessing import Process, Pipe
-
+import json
 
 
 SUITS = ['bamboo', 'dots', 'character']
@@ -65,6 +65,12 @@ class Environment:
         random.shuffle(self.remaining)
         self.opened_tiles_per_player = [[]] * self.num_players
         self.discarded_tiles_per_player = [[]] * self.num_players
+    def to_json(self, json_file_path):
+        with open(json_file_path, 'w') as f:
+            json.dump(self.__dict__, f)
+    def from_json(self, json_file_path):
+        with open(json_file_path, 'w') as f:
+            self.__dict__ = json.load(f)
     def draw(self, n):
         drawn_tiles = self.remaining[-n:]
         del self.remaining[-n:]
@@ -77,8 +83,14 @@ class Environment:
 
 class Brain:
     def __init__(self):
-        self.NUM_PLAYOUTS = 2000
+        self.NUM_PLAYOUTS = 100
         self.REGRESSION_THRESHOLD = -0.02
+    def to_json(self, json_file_path):
+        with open(json_file_path, 'w') as f:
+            json.dump(self.__dict__, f)
+    def from_json(self, json_file_path):
+        with open(json_file_path, 'w') as f:
+            self.__dict__ = json.load(f)
     def run_playouts(self, game, state):
         if state[2] is not None:
             hero_player_idx = state[2]
@@ -221,6 +233,21 @@ class Player:
         self.open_groups = []
         self.score = 0
         self.winning_tiles = []
+    def to_dict(self):
+        json_out = copy.deepcopy(self.__dict__)
+        json_out['Brain'] = self.Brain.__dict__
+        return json_out
+    def to_json(self, json_file_path):
+        with open(json_file_path, 'w') as f:
+            json.dump(self.to_dict, f)
+    def from_json(self, json_file_path):
+        with open(json_file_path, 'r') as f:
+            self.from_dict(json.load(f))
+    def from_dict(self, dict_to_load):
+        b = self.Brain
+        self.__dict__ = dict_to_load
+        b.__dict__ = self.__dict__['Brain']
+        self.Brain = b
     def add_to_hand(self, tile):
         self.hand.append(tile)
     def remove_from_hand(self, tile_index):
@@ -532,6 +559,30 @@ class Game:
             self.player_list[self.env.current_player_idx].update_winning_tiles()
         if state[0] != 'start':
             self.set_state(state)
+
+    def to_dict(self):
+        json_out = copy.deepcopy(self.__dict__)
+        json_out['env'] = self.env.__dict__
+        json_out['player_list'] = [player.to_dict() for player in self.player_list]
+        return json_out
+
+    def to_json(self, json_file_path):
+        with open(json_file_path, 'w') as f:
+            json.dump(self.to_dict, f)
+
+    def from_json(self, json_file_path):
+        with open(json_file_path, 'r') as f:
+            self.from_dict(json.load(f))
+        
+    def from_dict(self, dict_to_load):
+        pl = self.player_list
+        e = self.env
+        self.__dict__ = dict_to_load
+        e.__dict__ = self.__dict__['env']
+        self.env = e
+        for i, p in enumerate(self.player_list):
+            pl[i].from_dict(p)
+        self.player_list = pl
 
     def shuffle_game(self, hero_player_idx):
         used_tiles = self.env.discarded + self.player_list[hero_player_idx].hand + [tile for player in self.player_list for group in player.open_groups for tile in group[0]]
