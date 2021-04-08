@@ -27,15 +27,15 @@ ONE_OR_NINE_SCORE_FACTOR = 0.02
 
 #TODO:
 
-#fix the while loop pong to not let current player re-pong
 
-# test game with random play (randomish)
-# make sample tree finder
+extend api move to flask + add in all of the interactive game functions
+#put in lambda
+#make the bi liar and others stronger!!
 
-# add in the model or some heuristics for random move selection
 # figure out how to get features
 # figure out best way to order and present the tiles to model (start with good hands?)
-# heuristic based on how many "winning" options there are
+# add in the model or some heuristics for random move selection
+
 # add learning part
 # construct fake games meant to teach that you need each suit + 9 1 not 8 and 2
 
@@ -71,6 +71,10 @@ class Environment:
     def from_json(self, json_file_path):
         with open(json_file_path, 'w') as f:
             self.__dict__ = json.load(f)
+        self.__dict__['discarded'] = [tuple(tile) for tile in self.__dict__['discarded']]
+        self.__dict__['remaining'] = [tuple(tile) for tile in self.__dict__['remaining']]
+        self.__dict__['opened_tiles_per_player'] = [[tuple(tile) for tile in player_tiles] for player_tiles in self.__dict__['opened_tiles_per_player']]
+        self.__dict__['discarded_tiles_per_player'] = [[tuple(tile) for tile in player_tiles] for player_tiles in self.__dict__['discarded_tiles_per_player']]
     def draw(self, n):
         drawn_tiles = self.remaining[-n:]
         del self.remaining[-n:]
@@ -99,7 +103,10 @@ class Brain:
         total_wins = 0
         for i in range(self.NUM_PLAYOUTS):
             game.shuffle_game(hero_player_idx)
-            mcts_game = Game(player_list=copy.deepcopy(game.player_list), env=copy.deepcopy(game.env), MCTS=True, state=state, RANDSEED=game.RANDSEED+1)
+            if game.RANDSEED is not None:
+                mcts_game = Game(player_list=copy.deepcopy(game.player_list), env=copy.deepcopy(game.env), MCTS=True, state=state, RANDSEED=game.RANDSEED+1)
+            else:
+                mcts_game = Game(player_list=copy.deepcopy(game.player_list), env=copy.deepcopy(game.env), MCTS=True, state=state)
             mcts_game.play(num_turns_to_run=12)
             total_wins += mcts_game.player_list[hero_player_idx].score
             #total_wins += 1.0 if mcts_game.player_list[hero_player_idx].score == 1.0 else 0.0
@@ -242,7 +249,10 @@ class Player:
             json.dump(self.to_dict, f)
     def from_json(self, json_file_path):
         with open(json_file_path, 'r') as f:
-            self.from_dict(json.load(f))
+            tmp_player_dict = json.load(f)
+        tmp_player_dict["hand"] = [tuple(tile) for tile in tmp_player_dict["hand"]]
+        tmp_player_dict["open_groups"] = [([tuple(tile) for tile in open_group[0]], open_group[1]) for open_group in tmp_player_dict["open_groups"]]
+        self.from_dict(tmp_player_dict)
     def from_dict(self, dict_to_load):
         b = self.Brain
         self.__dict__ = dict_to_load
@@ -577,7 +587,15 @@ class Game:
     def from_dict(self, dict_to_load):
         pl = self.player_list
         e = self.env
-        self.__dict__ = dict_to_load
+        tmp_loaded_dict = copy.deepcopy(dict_to_load)
+        for tmp_player in tmp_loaded_dict['player_list']:
+            tmp_player["hand"] = [tuple(tile) for tile in tmp_player["hand"]]
+            tmp_player["open_groups"] = [([tuple(tile) for tile in open_group[0]], open_group[1]) for open_group in tmp_player["open_groups"]]
+        tmp_loaded_dict['env']['discarded'] = [tuple(tile) for tile in tmp_loaded_dict['env']['discarded']]
+        tmp_loaded_dict['env']['remaining'] = [tuple(tile) for tile in tmp_loaded_dict['env']['remaining']]
+        tmp_loaded_dict['env']['opened_tiles_per_player'] = [[tuple(tile) for tile in player_tiles] for player_tiles in tmp_loaded_dict['env']['opened_tiles_per_player']]
+        tmp_loaded_dict['env']['discarded_tiles_per_player'] = [[tuple(tile) for tile in player_tiles] for player_tiles in tmp_loaded_dict['env']['discarded_tiles_per_player']]
+        self.__dict__ = tmp_loaded_dict
         e.__dict__ = self.__dict__['env']
         self.env = e
         for i, p in enumerate(self.player_list):
@@ -746,6 +764,46 @@ class Game:
                 self.play_turn()
                 i += 1
 
+
+
+class InteractiveGame:
+    def __init__(self, starting_player_idx, my_hand, num_players=4):
+        self.g = Game(player_list=[Player() for i in range(num_players)])
+        self.g.env.current_player_idx = starting_player_idx
+        self.g.player_list[0].hand = my_hand
+        for tile in self.g.player_list[0].hand:
+            self.g.env.remaining.pop(self.env.remaining.index(tile))
+    def pickup(self, tile):
+        self.g.player_list[0].hand.append(tile)
+    def discard(self, tile):
+        self.g.env.discard(tile)
+        self.g.env.current_player_idx = (self.g.env.current_player_idx + 1) % self.g.env.num_players
+        tiles_opened = ig.g.player_list[0].do_pong(self.g, 0)
+        if tiles_opened:
+            print("Call pong, pick up discarded, open tiles: {}".format(str(tiles_opened)))
+            self.g.env.open_hand(tiles_opened)
+            self.g.env.current_player_idx = 0
+    def pong(self, player_idx, tile_list):
+        self.g.env.current_player_idx = player_idx
+        self.g.env.discarded.pop(-1)
+        self.g.player_list[self.g.env.current_player_idx].open_groups.append((tile_list, 'flush'))
+        self.g.env.open_hand(tile_list)
+    def chi(self, tile_list):
+        self.g.env.discarded.pop(-1)
+        self.g.player_list[self.g.env.current_player_idx].open_groups.append((tile_list, 'straight'))
+        self.g.env.open_hand(tile_list)
+    def reset_all_players_hands():
+        used_tiles = self.g.env.discarded + self.g.player_list[0].hand + [tile for player in self.g.player_list for group in player.open_groups for tile in group[0]]
+        possible_remaining_tiles = copy.deepcopy(TILES)
+        for tile in used_tiles:
+            possible_remaining_tiles.pop(possible_remaining_tiles.index(tile))
+        random.shuffle(possible_remaining_tiles)
+        for i in range(0,4):
+            if i != 0:
+                num_tiles_to_select = 13 - 3*len(self.player_list[i].open_groups)
+                self.player_list[i].hand = possible_remaining_tiles[0:num_tiles_to_select]
+                del possible_remaining_tiles[:num_tiles_to_select]
+        self.g.env.remaining = possible_remaining_tiles
 
 
 

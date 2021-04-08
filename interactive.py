@@ -1,6 +1,6 @@
 
 
-from mahjong_ai import Game, Environment, Player
+from mahjong_ai import Game, Environment, Player, TILES
 
 class InteractiveGame:
 	def __init__(self, starting_player_idx, my_hand):
@@ -17,7 +17,7 @@ class InteractiveGame:
 		self.g.env.current_player_idx = (self.g.env.current_player_idx + 1) % self.g.env.num_players
 		tiles_opened = ig.g.player_list[0].do_pong(self.g, 0)
 		if tiles_opened:
-			<call pong and open tiles, pick up discarded>
+			print("Call pong, pick up discarded, open tiles: {}".format(str(tiles_opened)))
 			self.g.env.open_hand(tiles_opened)
 			self.g.env.current_player_idx = 0
 	def pong(self, player_idx, tile_list):
@@ -35,15 +35,20 @@ class InteractiveGame:
 		for tile in used_tiles:
 			possible_remaining_tiles.pop(possible_remaining_tiles.index(tile))
 		random.shuffle(possible_remaining_tiles)
-		for i in range(1,4):
-			self.g.player_list[i].hand = possible_remaining_tiles[(i-1)*13:13*i]
+		for i in range(0,4):
+			if i != 0:
+				num_tiles_to_select = 13 - 3*len(self.player_list[i].open_groups)
+				self.player_list[i].hand = possible_remaining_tiles[0:num_tiles_to_select]
+				del possible_remaining_tiles[:num_tiles_to_select]
+		self.g.env.remaining = possible_remaining_tiles
 
 
 
 <PROMPT: select starting player>
 <PROMPT: select my hand>
+my_hand = 
+starting_player_idx = 
 ig = InteractiveGame(starting_player_idx, my_hand)
-
 
 <always give option to pong>
 ig.pong(player_idx, tile_list)
@@ -51,16 +56,62 @@ ig.pong(player_idx, tile_list)
 if ig.g.env.current_player_idx == 0:
 	tiles_opened = ig.g.player_list[0].do_chi(self.g)
 	if tiles_opened:
-		<print call chi open tiles, pick up discarded>
+		print("Call chi, Open tiles: {}, Pick up discarded".format(str(tiles_opened)))
 	else:
-		<PROMPT: print input tile picked up>
-		pickup(tile)
+		print("PROMPT: Input tile picked up")
+		ig.pickup(tile)
 	discard_tile = self.player_list[0].choose_discard(self.g)
 	self.env.discard(discard_tile)
-	<print discarded tile>
-	ig.g.env.current_player_idx = (ig.g.env.current_player_idx + 1) % ig.g.env.num_players
+	print("Discard: {}".format(str(discard_tile)))
+	
 else:
 	<give option to click chi, if chi is clicked enter tile list>
 	ig.chi(tile_list)
-	<PROMPT: enter tile discarded>
+	print("PROMPT: Enter tile discarded")
 	ig.discard(tile)
+
+
+
+
+
+
+
+
+<PROMPT: select starting player>
+<PROMPT: select my hand>
+my_hand = 
+starting_player_idx = 
+ig = InteractiveGame(starting_player_idx, my_hand)
+
+
+#ALWAYS GIVE THE OPTION
+ig.pong(player_idx, tile_list)
+
+
+#ON MY TURN
+tiles_opened = ig.g.player_list[0].do_chi(self.g)
+if tiles_opened:
+	print("Call chi, Open tiles: {}, Pick up discarded".format(str(tiles_opened)))
+else:
+	print("PROMPT: Input tile picked up")
+	ig.pickup(tile)
+discard_tile = self.player_list[0].choose_discard(self.g)
+self.env.discard(discard_tile)
+print("Discard: {}".format(str(discard_tile)))
+
+
+#ON OTHERS TURN
+<give option to click chi, if chi is clicked enter tile list>
+ig.chi(tile_list)
+print("PROMPT: Enter tile discarded")
+ig.discard(tile)
+
+
+
+
+
+
+
+
+
+

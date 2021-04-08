@@ -1,0 +1,24 @@
+
+#{'game_state': game_state_dict, 'action': 'discard'}
+
+curl http://localhost:5000/todo1 -d "data=Remember the milk" -X PUT
+
+
+
+
+
+
+
+import requests
+
+game_state_dict = g.to_dict()
+
+
+r = requests.patch('http://127.0.0.1:5000/update-game', data={'game_state':json.dumps(game_state_dict)}) #update the game state , tell it to make game object and add it up
+r = requests.get('http://127.0.0.1:5000/discard') #grab the object we want (discard, chi, pong?)
+r.json()
+
+
+
+
+r = requests.patch('http://127.0.0.1:5000/update-game', data={'game_state':json.dumps(game_state_dict)}) #update the game state , tell it to make game object and add it up
