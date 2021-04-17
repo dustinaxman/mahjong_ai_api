@@ -1,4 +1,3 @@
-
 #{'game_state': game_state_dict, 'action': 'discard'}
 
 curl http://localhost:5000/todo1 -d "data=Remember the milk" -X PUT
@@ -69,3 +68,4 @@ if tiles_opened:
 	print("Call pong, pick up discarded, open tiles: {}".format(str(tiles_opened)))
 	discarded_tile = discard(None)
 	print("Discard: {}".format(str(discarded_tile)))
+

@@ -28,7 +28,6 @@ ONE_OR_NINE_SCORE_FACTOR = 0.02
 #TODO:
 
 
-#extend api move to flask + add in all of the interactive game functions
 #put in lambda
 #make the bi liar and others stronger!!
 
