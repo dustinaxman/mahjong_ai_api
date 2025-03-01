@@ -1,6 +1,6 @@
 #{'game_state': game_state_dict, 'action': 'discard'}
 
-curl http://localhost:5000/todo1 -d "data=Remember the milk" -X PUT
+curl http://localhost:5000/todo1 -d "data=" -X PUT
 
 
 
